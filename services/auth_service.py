@@ -1,16 +1,31 @@
-from database.mongodb import users
+from core.database import users_collection
 from core.security import hash_password, verify_password, create_access_token
-from utils.enums import Role
+from models.user_model import create_user, user_dict
+from fastapi import HTTPException
 
-def register_user(email, password):
-    users.insert_one({
-        "email": email,
-        "password": hash_password(password),
-        "role": Role.USER
+def register_user(username: str, password: str):
+    if users_collection.find_one({"username": username}):
+        raise HTTPException(400, "User already exists")
+
+    # 👇 FORCE USER ROLE
+    user = create_user(
+        username=username,
+        password=hash_password(password),
+        role="user"
+    )
+
+    users_collection.insert_one(user)
+    return user_dict(user)
+
+def login_user(username: str, password: str):
+    user = users_collection.find_one({"username": username})
+    if not user or not verify_password(password, user["password"]):
+        raise HTTPException(401, "Invalid credentials")
+
+    token = create_access_token({
+        "sub": user["username"],
+        "user_id": user["id"],
+        "role": user["role"]
     })
 
-def authenticate_user(email, password):
-    user = users.find_one({"email": email})
-    if not user or not verify_password(password, user["password"]):
-        return None
-    return create_access_token({"email": user["email"], "role": user["role"]})
+    return {"access_token": token, "token_type": "bearer"}

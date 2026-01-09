@@ -1,6 +1,7 @@
 from pydantic import BaseModel
+from typing import Optional
 
 class ReviewCreate(BaseModel):
-    tool_id: str
+    tool_id: int
     rating: int
-    comment: str | None = None
+    comment: Optional[str] = None
